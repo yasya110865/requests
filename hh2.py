@@ -1,11 +1,11 @@
 import requests
+import time
 import pprint
 from collections import Counter
-import time
 import json
 
 url = 'https://api.hh.ru/vacancies'
-vacance = 'python'
+vacance = 'Data scientist'
 params = {
     'text': vacance,'area': 1,
     # есть страницы т.к. данных много
@@ -16,17 +16,44 @@ params = {
 result = requests.get(url, params=params).json()
 #количество страниц
 pages_count = result['pages']
-items = result['items']
-collect_skills = []
-for i in range(len(items[:10])):
 
-    vac_url = items[i]['url']
+it = []
+for i in range(pages_count):
+    params = {'text': vacance,
+              'page': i
+
+    }
+    result = requests.get(url, params=params).json()
+    items = result['items']
+    it += items
+
+#число найденных вакансий
+num_vacances = len(it)
+s_from = []
+s_to = []
+
+#если указана зарплата, то добавляем значения в соответствующий список
+for i in range(len(it)):
+    if it[i]['salary']:
+        if it[i]['salary']['from']:
+             s_from.append(it[i]['salary']['from'])
+        if  it[i]['salary']['to']:
+            s_to.append(it[i]['salary']['to'])
+
+#считаем среднюю зарплату нижнюю и верхнюю
+mean_salaryfrom = round(sum(s_from)/len(s_from))
+mean_salaryto = round(sum(s_to)/len(s_to))
+
+collect_skills = []
+for i in range(len(it[:10])):
+
+    vac_url = it[i]['url']
     vac = requests.get(vac_url).json()
-    nonempty_skills = 0
+    time.sleep(1)
     print(vac)
+    nonempty_skills = 0
 
     if vac['key_skills']:
-        time.sleep()
         skills_dict = vac['key_skills']
         print(skills_dict)
         nonempty_skills += 1
@@ -65,17 +92,19 @@ for i in range(len(final_skills)):
             }
     skills.append(info)
 pprint.pprint(skills)
-#это будет список данных по каждой вакансии
-# it = []
-# for i in range(pages_count):
-#     params = {'text': vacance,
-#               'page': i
-#
-#     }
-#     result = requests.get(url, params=params).json()
-#     items = result['items']
-#     it += items
 
-#число найденных вакансий
-# num_vacances = len(it)
+final = {
+    'name': vacance,
+    'count': num_vacances,
+    'salary':{'from':mean_salaryfrom,
+              'to':mean_salaryto},
+    'skills': skills
+}
 
+
+with open('hh.json', 'w') as f:
+    json.dump(final, f)
+
+with open('hh.json', 'r') as f:
+    text = json.load(f)
+    print(json.dumps(text, indent=2, sort_keys=True))
